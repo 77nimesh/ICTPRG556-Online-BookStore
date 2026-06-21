@@ -1,195 +1,161 @@
 package controller;
 
-import javax.servlet.*;
-import javax.servlet.http.*;
-import java.io.*;
-import java.util.*;
-import model.Book;
-import model.CartItem;
-import utility.AdmitBookStoreDAO;
+import dispatchers.IDispatcher;
+import java.io.IOException;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * FrontController class to handle HTTP requests and responses.
+ *
+ * This servlet acts as the main controller in the MVC structure. It receives all
+ * browser requests, identifies the requested action, delegates the processing to
+ * a dispatcher command object, and forwards control to the selected JSP view.
  */
 public class FrontController extends HttpServlet {
 
-    private final HashMap actions = new HashMap();
+    private final Map<String, IDispatcher> actions = new HashMap<String, IDispatcher>();
 
     /**
-     * Initialize global variables.
-     * @param config ServletConfig object
-     * @throws ServletException if an error occurs during initialization
+     * Loads dispatcher command classes from web.xml init parameters.
+     *
+     * Each init parameter that starts with "action." is treated as a dispatcher
+     * configuration entry. For example:
+     *
+     * action.view_books = dispatchers.ViewBooksDispatcher
+     *
+     * @param config ServletConfig object containing servlet init parameters
+     * @throws ServletException if a dispatcher cannot be loaded
      */
+    @Override
     public void init(ServletConfig config) throws ServletException {
         super.init(config);
-        // Additional initialization code can be added here
+
+        Enumeration names = config.getInitParameterNames();
+
+        while (names.hasMoreElements()) {
+            String paramName = (String) names.nextElement();
+
+            if (paramName.startsWith("action.")) {
+                String actionName = paramName.substring("action.".length());
+                String className = config.getInitParameter(paramName);
+
+                try {
+                    IDispatcher dispatcher =
+                            (IDispatcher) Class.forName(className).newInstance();
+
+                    actions.put(actionName, dispatcher);
+                } catch (Exception ex) {
+                    throw new ServletException(
+                            "Unable to load dispatcher: " + className, ex);
+                }
+            }
+        }
     }
 
     /**
-     * Process the HTTP GET request.
+     * Processes HTTP GET requests by passing them to doPost().
+     *
      * @param request HttpServletRequest object
      * @param response HttpServletResponse object
      * @throws ServletException if a servlet-specific error occurs
      * @throws IOException if an I/O error occurs
      */
-    public void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        System.err.println("doGet()");
-        // Forward GET requests to doPost method
+    @Override
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
         doPost(request, response);
     }
 
     /**
-     * Process the HTTP POST request.
+     * Processes HTTP POST requests.
+     *
+     * The controller gets the requested action, finds the matching dispatcher,
+     * executes the dispatcher, and forwards the request to the JSP view returned
+     * by that dispatcher.
+     *
      * @param request HttpServletRequest object
      * @param response HttpServletResponse object
      * @throws ServletException if a servlet-specific error occurs
      * @throws IOException if an I/O error occurs
      */
-    public void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.setContentType("text/html");
+    @Override
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
 
-        // Get the requested action from the request parameters
+        response.setContentType("text/html;charset=UTF-8");
+
         String requestedAction = request.getParameter("action");
-        HttpSession session = request.getSession();
-        AdmitBookStoreDAO dao = new AdmitBookStoreDAO();
-        String nextPage = "";
 
-        // If no action is specified, fetch all books and display them
-        if (requestedAction == null) {
-            dao = new AdmitBookStoreDAO();
-            List<Book> books = null;
+        if (requestedAction == null || requestedAction.trim().length() == 0) {
+            requestedAction = "view_books";
+        }
+
+        IDispatcher dispatcher = actions.get(requestedAction);
+        String nextPage = getServletConfig().getInitParameter("view.error");
+
+        if (nextPage == null || nextPage.trim().length() == 0) {
             nextPage = "/jsp/error.jsp";
-            session = request.getSession();
-            try {
-                books = dao.getAllBooks();
-                session.setAttribute("books", books);
-                nextPage = "/jsp/titles.jsp";
-            } catch (Exception ex) {
-                request.setAttribute("result", ex.getMessage());
+        }
+
+        if (dispatcher == null) {
+            request.setAttribute("result", "Unknown action: " + requestedAction);
+            dispatch(request, response, nextPage);
+            return;
+        }
+
+        try {
+            nextPage = dispatcher.execute(request, getServletConfig());
+
+            if (nextPage == null || nextPage.trim().length() == 0) {
+                nextPage = getServletConfig().getInitParameter("view.error");
+            }
+
+        } catch (Exception ex) {
+            request.setAttribute("result", ex.getMessage());
+            nextPage = getServletConfig().getInitParameter("view.error");
+
+            if (nextPage == null || nextPage.trim().length() == 0) {
                 nextPage = "/jsp/error.jsp";
-            } finally {
-                this.dispatch(request, response, nextPage);
             }
-        } else if (requestedAction.equals("add_to_cart")) {
-            nextPage = "/jsp/titles.jsp";
-
-            // Retrieve the cart from the session
-            Map<String, CartItem> cart = (Map<String, CartItem>) session.getAttribute("cart");
-            String[] selectedBooks = request.getParameterValues("add");
-
-            // Check if selectedBooks is null or empty
-            if (selectedBooks == null || selectedBooks.length == 0) {
-                this.dispatch(request, response, nextPage);
-                return;
-            }
-
-            // If the cart is null, create a new cart and add selected books
-            if (cart == null) {
-                cart = new HashMap();
-
-                for (String isbn : selectedBooks) {
-                    int quantity = Integer.parseInt(request.getParameter(isbn));
-                    Book book = this.getBookFromList(isbn, session);
-                    CartItem item = new CartItem(book);
-                    item.setQuantity(quantity);
-                    cart.put(isbn, item);
-                }
-                session.setAttribute("cart", cart);
-            } else {
-                // If the cart already exists, update the quantities of selected books
-                for (String isbn : selectedBooks) {
-                    int quantity = Integer.parseInt(request.getParameter(isbn));
-                    if (cart.containsKey(isbn)) {
-                        CartItem item = cart.get(isbn);
-                        item.setQuantity(quantity);
-                    } else {
-                        Book book = this.getBookFromList(isbn, session);
-                        CartItem item = new CartItem(book);
-                        item.setQuantity(quantity);
-                        cart.put(isbn, item);
-                    }
-                }
-            }
-
-            this.dispatch(request, response, nextPage);
-        } else if (requestedAction.equals("checkout")) {
-            // Redirect to the checkout page
-            nextPage = "/jsp/checkout.jsp";
-            this.dispatch(request, response, nextPage);
-        } else if (requestedAction.equals("continue")) {
-            // Redirect to the titles page
-            nextPage = "/jsp/titles.jsp";
-            this.dispatch(request, response, nextPage);
-        } else if (requestedAction.equals("update_cart")) {
-            Map<String, CartItem> cart = null;
-            CartItem item = null;
-            String isbn = null;
-            nextPage = "/jsp/cart.jsp";
-            cart = (Map<String, CartItem>) session.getAttribute("cart");
-            String[] booksToRemove = request.getParameterValues("remove");
-            if (booksToRemove != null) {
-                for (String bookToRemove : booksToRemove) {
-                    cart.remove(bookToRemove);
-                }
-            }
-            Set<Map.Entry<String, CartItem>> entries = cart.entrySet();
-            Iterator<Map.Entry<String, CartItem>> iter = entries.iterator();
-            while (iter.hasNext()) {
-                Map.Entry<String, CartItem> entry = iter.next();
-                isbn = entry.getKey();
-                item = entry.getValue();
-                int quantity = Integer.parseInt(request.getParameter(isbn));
-                item.updateQuantity(quantity);
-            }
-            this.dispatch(request, response, nextPage);
-        } else if (requestedAction.equals("view_cart")) {
-            // Redirect to the cart page
-            nextPage = "/jsp/cart.jsp";
-            Map<String, CartItem> cart = (Map<String, CartItem>) session.getAttribute("cart");
-            if (cart == null) {
-                nextPage = "/jsp/titles.jsp";
-            }
-            this.dispatch(request, response, nextPage);
         }
+
+        dispatch(request, response, nextPage);
     }
 
     /**
-     * Retrieve a book from the list of books stored in the session.
-     * @param isbn ISBN of the book
-     * @param session HttpSession object
-     * @return Book object
-     */
-    private Book getBookFromList(String isbn, HttpSession session) {
-        List<Book> list = (List<Book>) session.getAttribute("books");
-        Book aBook = null;
-        for (Book book : list) {
-            if (isbn.equals(book.getIsbn())) {
-                aBook = book;
-                break;
-            }
-        }
-        return aBook;
-    }
-
-    /**
-     * Forward the request to the specified page.
+     * Forwards the request to the selected JSP page.
+     *
      * @param request HttpServletRequest object
      * @param response HttpServletResponse object
-     * @param page Page to forward to
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
+     * @param page JSP page path
+     * @throws ServletException if forwarding fails
+     * @throws IOException if forwarding fails
      */
-    private void dispatch(HttpServletRequest request, HttpServletResponse response, String page) throws ServletException, IOException {
+    private void dispatch(HttpServletRequest request,
+                          HttpServletResponse response,
+                          String page)
+            throws ServletException, IOException {
+
         RequestDispatcher dispatcher = getServletContext().getRequestDispatcher(page);
         dispatcher.forward(request, response);
     }
 
     /**
-     * Get Servlet information.
-     * @return Servlet information
+     * Returns servlet information.
+     *
+     * @return servlet description
      */
+    @Override
     public String getServletInfo() {
-        return "controller.FrontController Information";
+        return "controller.FrontController using Dispatcher Command Pattern";
     }
 }
-

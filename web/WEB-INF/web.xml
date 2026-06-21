@@ -1,18 +1,84 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+<web-app version="2.5"
+         xmlns="http://java.sun.com/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+
     <session-config>
-        <session-timeout>
-            30
-        </session-timeout>
+        <session-timeout>30</session-timeout>
     </session-config>
-     <servlet>
-	<servlet-name>main</servlet-name>
-	<servlet-class>controller.FrontController</servlet-class>
-  </servlet>
 
-  <servlet-mapping>
-	<servlet-name>main</servlet-name>
+    <servlet>
+        <servlet-name>main</servlet-name>
+        <servlet-class>controller.FrontController</servlet-class>
+
+        <!-- JSP view configuration -->
+        <init-param>
+            <param-name>view.titles</param-name>
+            <param-value>/jsp/titles.jsp</param-value>
+        </init-param>
+
+        <init-param>
+            <param-name>view.cart</param-name>
+            <param-value>/jsp/cart.jsp</param-value>
+        </init-param>
+
+        <init-param>
+            <param-name>view.checkout</param-name>
+            <param-value>/jsp/checkout.jsp</param-value>
+        </init-param>
+
+        <init-param>
+            <param-name>view.thankyou</param-name>
+            <param-value>/jsp/thankyou.jsp</param-value>
+        </init-param>
+
+        <init-param>
+            <param-name>view.error</param-name>
+            <param-value>/jsp/error.jsp</param-value>
+        </init-param>
+
+        <!-- Dispatcher command configuration -->
+        <init-param>
+            <param-name>action.view_books</param-name>
+            <param-value>dispatchers.ViewBooksDispatcher</param-value>
+        </init-param>
+
+        <init-param>
+            <param-name>action.add_to_cart</param-name>
+            <param-value>dispatchers.AddToCartDispatcher</param-value>
+        </init-param>
+
+        <init-param>
+            <param-name>action.view_cart</param-name>
+            <param-value>dispatchers.ViewCartDispatcher</param-value>
+        </init-param>
+
+        <init-param>
+            <param-name>action.update_cart</param-name>
+            <param-value>dispatchers.UpdateCartDispatcher</param-value>
+        </init-param>
+
+        <init-param>
+            <param-name>action.checkout</param-name>
+            <param-value>dispatchers.CheckoutDispatcher</param-value>
+        </init-param>
+
+        <init-param>
+            <param-name>action.continue</param-name>
+            <param-value>dispatchers.ContinueShoppingDispatcher</param-value>
+        </init-param>
+
+        <init-param>
+            <param-name>action.validate_credit</param-name>
+            <param-value>dispatchers.ThankYouDispatcher</param-value>
+        </init-param>
+
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>main</servlet-name>
         <url-pattern>/books</url-pattern>
-  </servlet-mapping>
+    </servlet-mapping>
 
-    </web-app>
+</web-app>
