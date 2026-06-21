@@ -1,0 +1,44 @@
+# Build output
+build/
+dist/
+out/
+
+# NetBeans project files
+nbproject/private/
+nbproject/configs/
+nbproject/genfiles.properties
+
+# Compiled classes and generated sources
+*.class
+*.war
+*.ear
+*.jar
+*.ser
+generated-sources/
+build/generated-sources/
+
+# IDE and editor metadata
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.nb-gradle/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+*.DS_Store
+Thumbs.db
+
+# Test and coverage output
+test-output/
+coverage/
+target/
+
+# OS-specific and local environment files
+.env
+.env.*
+
