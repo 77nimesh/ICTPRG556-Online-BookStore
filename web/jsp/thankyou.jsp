@@ -1,16 +1,23 @@
-<%@ page contentType="text/html; charset=iso-8859-1" language="java" import="java.sql.*" errorPage="" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ page contentType="text/html" pageEncoding="UTF-8" %>
 <!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Thank You</title>
-        <link rel="stylesheet" type="text/css" href="../css/style.css">
+        <c:url var="styleUrl" value="/css/style.css" />
+        <link rel="stylesheet" type="text/css" href="${styleUrl}">
     </head>
     <body>
+        <jsp:include page="header.jsp" />
+
         <h2>Thank You For Shopping at Bookstore</h2>
         <hr>
         <h3>Your credit card details are being validated</h3>
-        <% session.invalidate();%>
+
+        <c:remove var="cart" scope="session" />
+
+        <jsp:include page="footer.jsp" />
     </body>
 </html>

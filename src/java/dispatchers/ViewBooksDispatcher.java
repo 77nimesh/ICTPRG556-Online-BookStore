@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import model.Book;
 import utility.AdmitBookStoreDAO;
+import utility.BookService;
 
 /**
  *
@@ -18,11 +19,20 @@ import utility.AdmitBookStoreDAO;
  */
 public class ViewBooksDispatcher implements IDispatcher {
 
+    /**
+     * Loads book records using JPA and stores them in session scope.
+     *
+     * @param request HTTP request
+     * @param config servlet configuration
+     * @return titles JSP page
+     * @throws Exception if book records cannot be loaded
+     */
     public String execute(HttpServletRequest request, ServletConfig config) throws Exception {
         HttpSession session = request.getSession();
-        AdmitBookStoreDAO dao = new AdmitBookStoreDAO();
 
-        List<Book> books = dao.getAllBooks();
+        BookService service = new BookService();
+        List<Book> books = service.findAllBooks();
+
         session.setAttribute("books", books);
 
         return config.getInitParameter("view.titles");
